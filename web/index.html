@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Code Executor</title>
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #569cd6;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .code-input {
+            width: 100%;
+            height: 200px;
+            background: #2d2d2d;
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            padding: 12px;
+            color: #d4d4d4;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            resize: vertical;
+            tab-size: 4;
+        }
+        .code-input:focus {
+            outline: none;
+            border-color: #569cd6;
+        }
+        .btn-run {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 12px;
+            transition: background 0.2s;
+        }
+        .btn-run:hover {
+            background: #1177bb;
+        }
+        .btn-run:disabled {
+            background: #3c3c3c;
+            cursor: not-allowed;
+        }
+        .results {
+            margin-top: 24px;
+        }
+        .result-section {
+            background: #2d2d2d;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .result-section h3 {
+            font-size: 0.85rem;
+            color: #808080;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .result-value {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .output { color: #d4d4d4; }
+        .error { color: #f14c4c; }
+        .time { color: #4ec9b0; }
+        .memory { color: #dcdcaa; }
+        .params {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+        .param-card {
+            background: #252526;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .param-name {
+            font-size: 0.75rem;
+            color: #808080;
+            margin-bottom: 4px;
+        }
+        .param-value {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            color: #9cdcfe;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Python Code Executor</h1>
+        
+        <textarea id="codeInput" class="code-input" placeholder="Введите ваш Python код здесь...
+Пример: print('Hello, World!'); x = 5 * 10"></textarea>
+        
+        <button id="runBtn" class="btn-run">Запустить код</button>
+        
+        <div class="results" id="results" style="display: none;">
+            <div class="result-section">
+                <h3>Параметры выполнения</h3>
+                <div class="params">
+                    <div class="param-card">
+                        <div class="param-name">Время выполнения</div>
+                        <div class="param-value" id="timeParam">-</div>
+                    </div>
+                    <div class="param-card">
+                        <div class="param-name">Использовано памяти</div>
+                        <div class="param-value" id="memoryParam">-</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="result-section">
+                <h3>Вывод</h3>
+                <div class="result-value output" id="output">-</div>
+            </div>
+            
+            <div class="result-section" id="errorSection" style="display: none;">
+                <h3>Ошибка</h3>
+                <div class="result-value error" id="error">-</div>
+            </div>
+            
+            <div class="result-section">
+                <h3>Сообщения</h3>
+                <div class="result-value time" id="timeMessage">-</div>
+                <div class="result-value memory" id="memoryMessage" style="margin-top: 8px;">-</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="eel.js"></script>
+    <script>
+        const codeInput = document.getElementById('codeInput');
+        const runBtn = document.getElementById('runBtn');
+        const resultsDiv = document.getElementById('results');
+        const errorSection = document.getElementById('errorSection');
+        
+        // Tab key - insert 4 spaces instead of moving focus
+        codeInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+                this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+                this.selectionStart = this.selectionEnd = start + 4;
+            }
+        });
+        
+        runBtn.addEventListener('click', () => {
+            const userCode = codeInput.value.trim();
+            if (!userCode) {
+                alert('Введите код для выполнения');
+                return;
+            }
+            
+            runBtn.disabled = true;
+            runBtn.textContent = 'Выполнение...';
+            
+            try {
+                eel.run_code(userCode)(function(result) {
+                    showResults(result);
+                    runBtn.disabled = false;
+                    runBtn.textContent = 'Запустить код';
+                });
+            } catch (err) {
+                alert('Ошибка: ' + err);
+                runBtn.disabled = false;
+                runBtn.textContent = 'Запустить код';
+            }
+        });
+        
+        function showResults(result) {
+            resultsDiv.style.display = 'block';
+            
+            // Параметры
+            document.getElementById('timeParam').textContent = 
+                result.time !== null ? result.time.toFixed(4) + ' сек' : '-';
+            document.getElementById('memoryParam').textContent = 
+                result.memory !== null ? result.memory.toFixed(4) + ' МБ' : '-';
+            
+            // Вывод
+            document.getElementById('output').textContent = 
+                result.output || '(нет вывода)';
+            
+            // Ошибка
+            if (result.error) {
+                errorSection.style.display = 'block';
+                document.getElementById('error').textContent = result.error;
+            } else {
+                errorSection.style.display = 'none';
+            }
+            
+            // Сообщения
+            document.getElementById('timeMessage').textContent = 
+                result.time_message || '-';
+            document.getElementById('memoryMessage').textContent = 
+                result.memory_message || '-';
+        }
+    </script>
+</body>
+</html>

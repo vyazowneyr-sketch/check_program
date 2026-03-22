@@ -5,19 +5,12 @@ import io
 import sys 
 import eel
 
-eel.init('web')
-@eel.expose
-def run_code(user_code):
-    result = execute_code(user_code)
-    return result
-eel.start('index.html', size=(800, 600))
-
 
 class TrackerTime:
     def __init__(self, time_name):
         self.time_name = time_name
         self.elapsed = None
-        self.message = None  # добавим для сообщения
+        self.message = None 
     
     def __enter__(self):
         self.start_time = time.perf_counter() 
@@ -38,7 +31,7 @@ class TrackerMemory:
     def __init__(self, memory_name):
         self.memory_name = memory_name
         self.memory_used = None
-        self.message = None  # добавим для сообщения
+        self.message = None  
     
     def __enter__(self):
         self.process = psutil.Process(os.getpid())
@@ -112,12 +105,9 @@ def execute_code(user_code: str) -> dict:
 
     return result
 
-
-result = execute_code("print('Привет!'); x = 5 * 10")
-print(result)
-
-result = execute_code("import math; print(math.pi)")
-print(result)
-
-result = execute_code("print('Start'); raise ValueError('Ошибка!')")
-print(result)
+eel.init('web')
+@eel.expose
+def run_code(user_code):
+    result = execute_code(user_code)
+    return result
+eel.start('index.html', size=(800, 600))
